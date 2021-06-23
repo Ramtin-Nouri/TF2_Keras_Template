@@ -6,10 +6,14 @@ from nets import nnBase
 class NeuralNetwork(nnBase.NNBase):
     
     def __init__(self):
-        self.filename = "CNN"
+        #Only sets the name of this class
+        self.networkName = "Sample_CNN"
             
     def makeModel(self,inputShape,outputShape):
-
+        """
+            overrides base function
+            Create and return a Keras Model
+        """
         model = Sequential()
         model.add(Conv2D(32, (3, 3), activation='relu',padding='same',input_shape=inputShape))
         model.add(MaxPooling2D((2, 2)))
