@@ -13,6 +13,8 @@ class Logger():
             path to output folder of all functions
         model: tensorflow.keras.models.Model
             Keras Model
+        valImages: list
+            list of images (np.arrays) of images that should be predicted and saved for validation
     """
 
     def __init__(self,outputFolder,model):
@@ -32,6 +34,8 @@ class Logger():
 
         with open('%s/architecture.txt'%(self.folderName),'w') as fh:
             model.summary(print_fn=lambda x: fh.write(x + '\n'))
+        
+        self.valImages=[]
             
         
     def getCallbacks(self,use_tensorboard=True,use_csv_writer=True,predict=True,use_tensorboard_filewriter=True,period=5):
@@ -58,7 +62,7 @@ class Logger():
             if use_tensorboard_filewriter:
                 # Creates a file writer for the log directory.
                 file_writer = tf.summary.create_file_writer(self.folderName)
-                callbacksList(callbacks.LambdaCallback(on_epoch_end = lambda epoch,logs: self.predictAndTensorboard(file_writer,epoch,F"{self.folderName}figs/{epoch}.png")))
+                callbacksList(callbacks.LambdaCallback(on_epoch_end = lambda epoch,logs: self.predictAndSave2Tensorboard(file_writer,epoch,F"{self.folderName}figs/{epoch}.png")))
             else:
                 callbacksList.append(callbacks.LambdaCallback(on_epoch_end = lambda epoch,logs: self.predictAndSave(F"{self.folderName}figs/{epoch}.png")))
 
@@ -85,9 +89,10 @@ class Logger():
 
     def getImgPrediction(self):
         outputs =[]
-        for img in self.testImages:
+        for img in self.valImages:
             #Because of resources only one at the time
-            outputs.append(self.model.predict(np.array([img])))
+            pred = self.model.predict(np.array([img]))[0]
+            outputs.append(pred)
         return outputs
 
     def predictAndSave(self,name):
@@ -95,11 +100,21 @@ class Logger():
         stacked = self.stack(predictions)
         cv2.imwrite(name,stacked)
 
-    def predictAndTensorboard(self,fileWriter,epoch,name):
+    def predictAndSave2Tensorboard(self,fileWriter,epoch,name):
         predictions = self.getImgPrediction()
-        stacked = self.stack(predictions)
+        both=[None]*(len(self.testImages)*2)
+        both[::2]=self.testImages
+        both[1::2]=predictions
+        stacked = self.stack(both)
         cv2.imwrite(name,stacked)
         conv = np.array([np.clip(stacked,0,255)],dtype=np.uint8)
         with fileWriter.as_default():
             tf.summary.image("Test Image", conv, step=epoch)
 
+    def setTestImages(self,testImageFolder):
+        imgpaths = os.listdir(testImageFolder)[:8]
+        #Pray they are actually images
+        for img in imgpaths:
+            self.valImages.append(cv2.imread(F"{testImageFolder}/{img}"))
+        
+        
