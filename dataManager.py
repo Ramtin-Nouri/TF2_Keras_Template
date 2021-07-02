@@ -101,15 +101,15 @@ class ImageDataset():
                     inputs_.append(proccessedIn)
                     outputs.append(proccessedLabel)
 
-                yield (inputs_,outputs)
+                yield (np.array(inputs_),np.array(outputs))
 
-    def getGenerator(self):
+    def getGenerator(self,isTrain=True):
         """
             Returns
             ------
             generator for Keras' fit_generator
         """
-        return self.__generator()
+        return self.__generator(isTrain)
 
     def readIn(self,dataPoint):
         """

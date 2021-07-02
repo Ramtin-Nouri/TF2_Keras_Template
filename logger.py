@@ -62,7 +62,7 @@ class Logger():
             if use_tensorboard_filewriter:
                 # Creates a file writer for the log directory.
                 file_writer = tf.summary.create_file_writer(self.folderName)
-                callbacksList(callbacks.LambdaCallback(on_epoch_end = lambda epoch,logs: self.predictAndSave2Tensorboard(file_writer,epoch,F"{self.folderName}figs/{epoch}.png")))
+                callbacksList.append(callbacks.LambdaCallback(on_epoch_end = lambda epoch,logs: self.predictAndSave2Tensorboard(file_writer,epoch,F"{self.folderName}figs/{epoch}.png")))
             else:
                 callbacksList.append(callbacks.LambdaCallback(on_epoch_end = lambda epoch,logs: self.predictAndSave(F"{self.folderName}figs/{epoch}.png")))
 
