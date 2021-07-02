@@ -1,6 +1,6 @@
 import tensorflow as tf
-import _random, numpy as np
-import cv2 as _cv
+import random, numpy as np
+import cv2
 
 class ImageDataset():
     """
@@ -27,7 +27,7 @@ class ImageDataset():
         self.preFuncX = None
         self.preFuncY = None
     
-    def addDataFromTXT(self,trainX_txt="data/train_images.txt",trainY_txt="data/train_fixations.txt",testX_txt="data/test_images.txt",testY_txt="data/test_fixations.txt"):
+    def addDataFromTXT(self,trainX_txt,trainY_txt,testX_txt,testY_txt):
         """
             Add images to trainData and testData from txt files containing the names of the files
             Each line in the txt file should hold the path to one image
@@ -44,13 +44,13 @@ class ImageDataset():
             testY_txt: path to txt file as string
                 file name of file containing the label image's paths for testing
         """
-        trainXNames = open(trainX_txt).readlines()
-        trainYNames = open(trainY_txt).readlines()
+        trainXNames = open(trainX_txt).read().splitlines()
+        trainYNames = open(trainY_txt).read().splitlines()
         self.trainData.extend(zip(trainXNames,trainYNames))
         
 
-        testXNames=open(testX_txt).readlines()
-        testYNames=open(testY_txt).readlines()
+        testXNames=open(testX_txt).read().splitlines()
+        testYNames=open(testY_txt).read().splitlines()
         self.testData.extend(zip(testXNames,testYNames))
 
     def addData(self,trainXNames,trainYNames,testXNames,testYNames):
@@ -89,17 +89,19 @@ class ImageDataset():
         nDataPoints = len(self.trainData) if isTrain else len(self.testData)
         stepsize = int(nDataPoints/self.batchsize)
         while True:
-            _random.shuffle(self.trainData)
+            random.shuffle(self.trainData)
             for batch in range(stepsize):
                 inputs_ = []
                 outputs = []
-                for i in range(batch):
+                for i in range(self.batchsize):
                     index = i + batch*self.batchsize
                     dataPoint = self.trainData[index]
                     imgInput,imgLabel = self.readIn(dataPoint)
-                    proccessedIN,proccessedLabel = self.preprocess(imgInput,imgLabel)
+                    proccessedIn,proccessedLabel = self.preprocess(imgInput,imgLabel)
+                    inputs_.append(proccessedIn)
+                    outputs.append(proccessedLabel)
 
-            yield 0,0
+                yield (inputs_,outputs)
 
     def getGenerator(self):
         """
@@ -107,7 +109,7 @@ class ImageDataset():
             ------
             generator for Keras' fit_generator
         """
-        return self.__generator
+        return self.__generator()
 
     def readIn(self,dataPoint):
         """
