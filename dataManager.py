@@ -15,8 +15,7 @@ class ImageDataset():
             list of tuple of image names used for validating.
             See trainData
         batchsize: int
-        shallPreprocess: bool
-            whether a preprocessing step should be performed on the images
+        
 
     """
     def __init__(self,batchsize):
@@ -72,7 +71,7 @@ class ImageDataset():
         self.trainData.extend(zip(trainXNames,trainYNames))
         self.valData.extend(zip(valXNames,valYNames))
 
-    def __generator(self,isTrain=True):
+    def __generator(self,outputsize,isTrain=True,):
         """
         A python generator that yields a new datapoint for each next call
 
@@ -97,19 +96,19 @@ class ImageDataset():
                     index = i + batch*self.batchsize
                     dataPoint = self.trainData[index]
                     imgInput,imgLabel = self.readIn(dataPoint)
-                    proccessedIn,proccessedLabel = self.preprocess(imgInput,imgLabel)
-                    inputs_.append(proccessedIn)
-                    outputs.append(proccessedLabel)
+                    inputs_.append(imgInput)
+                    outputs.append(imgLabel)
 
-                yield (np.array(inputs_),np.array(outputs))
+                proccessedIn,proccessedOut = self.preprocess(inputs_,outputs,outputsize)
+                yield (proccessedIn,proccessedOut)
 
-    def getGenerator(self,isTrain=True):
+    def getGenerator(self,outputsize,isTrain=True):
         """
             Returns
             ------
             generator for Keras' fit_generator
         """
-        return self.__generator(isTrain)
+        return self.__generator(outputsize,isTrain)
 
     def readIn(self,dataPoint):
         """
@@ -124,38 +123,44 @@ class ImageDataset():
         imgLabel = cv2.imread(dataPoint[1])
         return (imgIn,imgLabel)
     
-    def setPreprocessing(self,functionX,functionY):
-        """
-            Set the functions that shall be called for each image
 
-            Arguments
-            ----------
-            functionX: function
-                function that takes an input image as input and outputs a processed image
-            functionY: function
-                same as functionX but for the labels
+    def preprocess(self,batchIn,batchOut,outputsize):
         """
-        self.shallPreprocess = True
-        self.preFuncX = functionX
-        self.preFuncY = functionY
-
-
-    def preprocess(self,imgIn,imgOut):
-        """
-            If preprocessing functions are set those will be called on the images and then put out
-            Otherwise inputs will just be returned
+            Preprocess a batch. Normalize, crop and resize
 
             Arguments
             ---------
-            imgIn: img
-            ImgOut: img
+            batchIn: list of img
+            batchOut: list of img
 
             Returns
             -------
-            tuple of processed imgIn and ImgOut
+            tuple of lists of processed batchIn and batchOut
         """
-        if self.shallPreprocess:
-            return (self.functionX(imgIn),self.functionY(imgOut))
-        else:
-            return (imgIn,imgOut)
+        procIn = []
+        procOut = []
+        #Crop upto 25% on each side, that means a maximum crop of half the image
+        imgShape = batchIn[0].shape
+        xStart=random.randint(1,imgShape[0]/4)
+        xEnd=random.randint(1,imgShape[0]/4)
+        yStart=random.randint(1,imgShape[1]/4)
+        yEnd=random.randint(1,imgShape[1]/4)
 
+        assert len(batchIn) == len(batchOut)
+        for i in range(len(batchIn)):
+            in_ = batchIn[i]/255
+            out_= batchOut[i]/255
+
+            in_ = in_[xStart:-xEnd,yStart:-yEnd]
+            out_ = out_[xStart:-xEnd,yStart:-yEnd]
+
+            try:
+                in_ = cv2.resize(in_,outputsize)
+                out_ = cv2.resize(out_,outputsize)
+            except Exception as e:
+                print(in_,xStart,xEnd,yStart,yEnd)
+                raise e
+
+            procIn.append(in_)
+            procOut.append(out_)
+        return (np.array(procIn),np.array(procOut))

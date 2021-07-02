@@ -13,8 +13,8 @@ class Logger():
             path to output folder of all functions
         model: tensorflow.keras.models.Model
             Keras Model
-        valImages: list
-            list of images (np.arrays) of images that should be predicted and saved for validation
+        testImages: list
+            list of images (np.arrays) of images that should be predicted and saved for testing
     """
 
     def __init__(self,outputFolder,model):
@@ -35,7 +35,7 @@ class Logger():
         with open('%s/architecture.txt'%(self.folderName),'w') as fh:
             model.summary(print_fn=lambda x: fh.write(x + '\n'))
         
-        self.valImages=[]
+        self.testImages=[]
             
         
     def getCallbacks(self,use_tensorboard=True,use_csv_writer=True,predict=True,use_tensorboard_filewriter=True,period=5):
@@ -79,17 +79,17 @@ class Logger():
                 for col in range(rowLength):
                         try:
                             img = imgs[row*rowLength+col]
-                            if img.ndim < 3:
+                            if img.shape[2] < 3:
                                 img = cv2.cvtColor(img,cv2.COLOR_GRAY2RGB)
                             thisRow.append(img)
                         except:
-                                thisRow.append(np.zeros(shape))
+                                thisRow.append(np.zeros(shape[0]),shape[1],3)
                 rows.append(np.hstack(thisRow))
         return np.vstack(rows)
 
     def getImgPrediction(self):
         outputs =[]
-        for img in self.valImages:
+        for img in self.testImages:
             #Because of resources only one at the time
             pred = self.model.predict(np.array([img]))[0]
             outputs.append(pred)
@@ -115,6 +115,6 @@ class Logger():
         imgpaths = os.listdir(testImageFolder)[:8]
         #Pray they are actually images
         for img in imgpaths:
-            self.valImages.append(cv2.imread(F"{testImageFolder}/{img}"))
+            self.testImages.append(cv2.imread(F"{testImageFolder}/{img}"))
         
         
