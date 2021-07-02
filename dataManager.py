@@ -11,8 +11,8 @@ class ImageDataset():
         ----------
         trainData: list of tuple of str
             list of tuple of image names used for training, where each tuple is (name of input image, name of output image aka label)
-        testData: list of tuple of str
-            list of tuple of image names used for testing.
+        valData: list of tuple of str
+            list of tuple of image names used for validating.
             See trainData
         batchsize: int
         shallPreprocess: bool
@@ -22,16 +22,16 @@ class ImageDataset():
     def __init__(self,batchsize):
         self.batchsize = batchsize
         self.trainData = []
-        self.testData = []
+        self.valData = []
         self.shallPreprocess = False
         self.preFuncX = None
         self.preFuncY = None
     
-    def addDataFromTXT(self,trainX_txt,trainY_txt,testX_txt,testY_txt):
+    def addDataFromTXT(self,trainX_txt,trainY_txt,valX_txt,valY_txt):
         """
-            Add images to trainData and testData from txt files containing the names of the files
+            Add images to trainData and valData from txt files containing the names of the files
             Each line in the txt file should hold the path to one image
-            The files should be arranged in an order such that the i_th line in trainY_txt and testY_txt is the label to trainX_txt and testX_txt i_th input.
+            The files should be arranged in an order such that the i_th line in trainY_txt and valY_txt is the label to trainX_txt and valX_txt i_th input.
 
             Arguments
             ----------
@@ -39,23 +39,23 @@ class ImageDataset():
                 file name of file containing the training image's paths for training
             trainY_txt: path to txt file as string
                 file name of file containing the label image's paths for training
-            testX_txt: path to txt file as string
-                file name of file containing the training image's paths for testing
-            testY_txt: path to txt file as string
-                file name of file containing the label image's paths for testing
+            valX_txt: path to txt file as string
+                file name of file containing the training image's paths for validating
+            valY_txt: path to txt file as string
+                file name of file containing the label image's paths for validating
         """
         trainXNames = open(trainX_txt).read().splitlines()
         trainYNames = open(trainY_txt).read().splitlines()
         self.trainData.extend(zip(trainXNames,trainYNames))
         
 
-        testXNames=open(testX_txt).read().splitlines()
-        testYNames=open(testY_txt).read().splitlines()
-        self.testData.extend(zip(testXNames,testYNames))
+        valXNames=open(valX_txt).read().splitlines()
+        valYNames=open(valY_txt).read().splitlines()
+        self.valData.extend(zip(valXNames,valYNames))
 
-    def addData(self,trainXNames,trainYNames,testXNames,testYNames):
+    def addData(self,trainXNames,trainYNames,valXNames,valYNames):
         """
-            Add image names to training and test data. The lists should match such that the input and labels have the same index
+            Add image names to training and val data. The lists should match such that the input and labels have the same index
             
             Arguments
             ----------
@@ -63,14 +63,14 @@ class ImageDataset():
                 file name of file containing the training image's paths for training
             trainY: list of paths to images
                 file name of file containing the label image's paths for training
-            testX: list of paths to images
-                file name of file containing the training image's paths for testing
-            testY: list of paths to images
-                file name of file containing the label image's paths for testing
+            valX: list of paths to images
+                file name of file containing the training image's paths for validating
+            valY: list of paths to images
+                file name of file containing the label image's paths for validating
 
         """
         self.trainData.extend(zip(trainXNames,trainYNames))
-        self.testData.extend(zip(testXNames,testYNames))
+        self.valData.extend(zip(valXNames,valYNames))
 
     def __generator(self,isTrain=True):
         """
@@ -79,14 +79,14 @@ class ImageDataset():
         Arguments
         ---------
         isTrain: bool
-            Whether this generator should yield training data or test data
+            Whether this generator should yield training data or validation data
 
         Yields
         -------
         Tuple of np.arrays:
             (input image,output image aka label)
         """
-        nDataPoints = len(self.trainData) if isTrain else len(self.testData)
+        nDataPoints = len(self.trainData) if isTrain else len(self.valData)
         stepsize = int(nDataPoints/self.batchsize)
         while True:
             random.shuffle(self.trainData)
