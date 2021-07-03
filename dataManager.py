@@ -98,9 +98,11 @@ class ImageDataset():
                     imgInput,imgLabel = self.readIn(dataPoint)
                     inputs_.append(imgInput)
                     outputs.append(imgLabel)
-
-                proccessedIn,proccessedOut = self.preprocess(inputs_,outputs,outputsize)
-                yield (proccessedIn,proccessedOut)
+                if isTrain:
+                    proccessedIn,proccessedOut = self.augmentate(inputs_,outputs,outputsize)
+                    yield (proccessedIn,proccessedOut)
+                else:
+                    yield (np.array(inputs_),np.array(outputs))
 
     def getGenerator(self,outputsize,isTrain=True):
         """
@@ -119,14 +121,14 @@ class ImageDataset():
             dataPoint: tuple of str
                 Tuple of path to input image and output image
         """
-        imgIn = cv2.imread(dataPoint[0])
-        imgLabel = cv2.imread(dataPoint[1])
+        imgIn = cv2.imread(dataPoint[0])/255
+        imgLabel = cv2.imread(dataPoint[1])/255
         return (imgIn,imgLabel)
     
 
-    def preprocess(self,batchIn,batchOut,outputsize):
+    def augmentate(self,batchIn,batchOut,outputsize):
         """
-            Preprocess a batch. Normalize, crop and resize
+            Augmentate a batch. Normalize, crop and resize
 
             Arguments
             ---------
@@ -148,18 +150,18 @@ class ImageDataset():
 
         assert len(batchIn) == len(batchOut)
         for i in range(len(batchIn)):
-            in_ = batchIn[i]/255
-            out_= batchOut[i]/255
+            in_ = batchIn[i]
+            out_= batchOut[i]
 
             in_ = in_[xStart:-xEnd,yStart:-yEnd]
             out_ = out_[xStart:-xEnd,yStart:-yEnd]
 
-            try:
-                in_ = cv2.resize(in_,outputsize)
-                out_ = cv2.resize(out_,outputsize)
-            except Exception as e:
-                print(in_,xStart,xEnd,yStart,yEnd)
-                raise e
+            in_ = cv2.resize(in_,outputsize)
+            out_ = cv2.resize(out_,outputsize)
+            
+            if random.random() > 0.5:
+                in_ = cv2.flip(in_,1)
+                out_ = cv2.flip(out_,1)
 
             procIn.append(in_)
             procOut.append(out_)
