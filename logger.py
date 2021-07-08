@@ -83,7 +83,7 @@ class Logger():
                                 img = cv2.cvtColor(img,cv2.COLOR_GRAY2RGB)
                             thisRow.append(img)
                         except:
-                                thisRow.append(np.zeros(shape[0]),shape[1],3)
+                                thisRow.append( np.zeros((shape[0],shape[1],3)) )
                 rows.append(np.hstack(thisRow))
         return np.vstack(rows)
 
