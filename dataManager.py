@@ -1,6 +1,8 @@
 import tensorflow as tf
 import random, numpy as np
 import cv2
+from sklearn.model_selection import train_test_split
+
 
 class ImageDataset():
     """
@@ -26,7 +28,7 @@ class ImageDataset():
         self.preFuncX = None
         self.preFuncY = None
     
-    def addDataFromTXT(self,trainX_txt,trainY_txt,valX_txt,valY_txt):
+    def addDataFromTXT(self,trainX_txt,trainY_txt,valX_txt="",valY_txt="",splitTrain=False):
         """
             Add images to trainData and valData from txt files containing the names of the files
             Each line in the txt file should hold the path to one image
@@ -42,17 +44,27 @@ class ImageDataset():
                 file name of file containing the training image's paths for validating
             valY_txt: path to txt file as string
                 file name of file containing the label image's paths for validating
+            splitTrain: bool
+                If no validation data is given and this boolean is set the training data will be split into train and validation sets
         """
         trainXNames = open(trainX_txt).read().splitlines()
         trainYNames = open(trainY_txt).read().splitlines()
-        self.trainData.extend(zip(trainXNames,trainYNames))
         
+        if valX_txt and valY_txt:
+            self.trainData.extend(zip(trainXNames,trainYNames))
 
-        valXNames=open(valX_txt).read().splitlines()
-        valYNames=open(valY_txt).read().splitlines()
-        self.valData.extend(zip(valXNames,valYNames))
+            valXNames=open(valX_txt).read().splitlines()
+            valYNames=open(valY_txt).read().splitlines()
+            self.valData.extend(zip(valXNames,valYNames))
+        elif splitTrain:
+            xTrain,xVal,yTrain,yVal = train_test_split(trainXNames,trainYNames,test_size=0.2,random_state=1,shuffle=True)
+            self.trainData.extend(zip(xTrain,yTrain))
+            self.valData.extend(zip(xVal,yVal))
+        else:
+            self.trainData.extend(zip(trainXNames,trainYNames))
+            
 
-    def addData(self,trainXNames,trainYNames,valXNames,valYNames):
+    def addData(self,trainXNames,trainYNames,valXNames=[],valYNames=[],splitTrain=False):
         """
             Add image names to training and val data. The lists should match such that the input and labels have the same index
             
@@ -65,11 +77,20 @@ class ImageDataset():
             valX: list of paths to images
                 file name of file containing the training image's paths for validating
             valY: list of paths to images
-                file name of file containing the label image's paths for validating
+            splitTrain: bool
+                If no validation data is given and this boolean is set the training data will be split into train and validation sets
 
         """
-        self.trainData.extend(zip(trainXNames,trainYNames))
-        self.valData.extend(zip(valXNames,valYNames))
+        if len(valXNames)>0 and len(valYNames)>0:
+            self.trainData.extend(zip(trainXNames,trainYNames))
+            self.valData.extend(zip(valXNames,valYNames))
+        elif splitTrain:
+            xTrain,xVal,yTrain,yVal = train_test_split(trainXNames,trainYNames,test_size=0.2,random_state=1,shuffle=True)
+            self.trainData.extend(zip(xTrain,yTrain))
+            self.valData.extend(zip(xVal,yVal))
+        else:
+            self.trainData.extend(zip(trainXNames,trainYNames))
+
 
     def __generator(self,outputsize,isTrain=True,):
         """
@@ -96,8 +117,13 @@ class ImageDataset():
                     index = i + batch*self.batchsize
                     dataPoint = self.trainData[index]
                     imgInput,imgLabel = self.readIn(dataPoint)
-                    inputs_.append(imgInput)
-                    outputs.append(imgLabel)
+                    if isTrain:
+                        inputs_.append(imgInput)
+                        outputs.append(imgLabel)
+                    else:
+                        inputs_.append(cv2.resize(imgInput,(224,224)))
+                        outputs.append(cv2.resize(imgLabel,(224,224)))
+
                 if isTrain:
                     proccessedIn,proccessedOut = self.augmentate(inputs_,outputs,outputsize)
                     yield (proccessedIn,proccessedOut)
@@ -121,8 +147,13 @@ class ImageDataset():
             dataPoint: tuple of str
                 Tuple of path to input image and output image
         """
-        imgIn = cv2.imread(dataPoint[0])/255
-        imgLabel = cv2.imread(dataPoint[1])/255
+        try:
+            imgIn = cv2.imread(dataPoint[0])/255
+            imgLabel = cv2.imread(dataPoint[1])/255
+        except Exception as e:
+            print("Error reading data:",dataPoint)
+            raise e
+
         return (imgIn,imgLabel)
     
 
@@ -141,28 +172,31 @@ class ImageDataset():
         """
         procIn = []
         procOut = []
-        #Crop upto 25% on each side, that means a maximum crop of half the image
-        imgShape = batchIn[0].shape
-        xStart=random.randint(1,imgShape[0]/4)
-        xEnd=random.randint(1,imgShape[0]/4)
-        yStart=random.randint(1,imgShape[1]/4)
-        yEnd=random.randint(1,imgShape[1]/4)
 
         assert len(batchIn) == len(batchOut)
         for i in range(len(batchIn)):
             in_ = batchIn[i]
             out_= batchOut[i]
 
-            in_ = in_[xStart:-xEnd,yStart:-yEnd]
-            out_ = out_[xStart:-xEnd,yStart:-yEnd]
+            #Crop upto 25% on each side, that means a maximum crop of half the image
+            cropShape = (np.array(in_.shape[:-1])/4).astype(np.uint8)
+            cropValues = np.random.randint([1,1],cropShape,size=(2,2))
 
-            in_ = cv2.resize(in_,outputsize)
-            out_ = cv2.resize(out_,outputsize)
+            croppedIn_ = in_[cropValues[0,0]:-cropValues[0,1],cropValues[1,0]:-cropValues[1,1]]
+            croppedOut_ = out_[cropValues[0,0]:-cropValues[0,1],cropValues[1,0]:-cropValues[1,1]]
+
+            if croppedIn_.shape[0]==0 or croppedIn_.shape[1]==0:
+                print("\n\n\nERROR: Too much cropped!!")
+                print(in_.shape,cropShape,cropValues)
+            
+            resizedIn_ = cv2.resize(croppedIn_,outputsize)
+            resizedOut_ = cv2.resize(croppedOut_,outputsize)
+
             
             if random.random() > 0.5:
-                in_ = cv2.flip(in_,1)
-                out_ = cv2.flip(out_,1)
+                resizedIn_ = cv2.flip(resizedIn_,1)
+                resizedOut_ = cv2.flip(resizedOut_,1)
 
-            procIn.append(in_)
-            procOut.append(out_)
+            procIn.append(resizedIn_)
+            procOut.append(resizedOut_)
         return (np.array(procIn),np.array(procOut))
