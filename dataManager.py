@@ -1,3 +1,4 @@
+from abc import abstractmethod
 import tensorflow as tf
 import random, numpy as np
 import cv2
@@ -24,9 +25,6 @@ class ImageDataset():
         self.batchsize = batchsize
         self.trainData = []
         self.valData = []
-        self.shallPreprocess = False
-        self.preFuncX = None
-        self.preFuncY = None
     
     def addDataFromTXT(self,trainX_txt,trainY_txt,valX_txt="",valY_txt="",splitTrain=False):
         """
@@ -92,7 +90,7 @@ class ImageDataset():
             self.trainData.extend(zip(trainXNames,trainYNames))
 
 
-    def __generator(self,outputsize,isTrain=True,):
+    def __generator(self,isTrain=True,):
         """
         A python generator that yields a new datapoint for each next call
 
@@ -117,26 +115,19 @@ class ImageDataset():
                     index = i + batch*self.batchsize
                     dataPoint = self.trainData[index]
                     imgInput,imgLabel = self.readIn(dataPoint)
-                    if isTrain:
-                        inputs_.append(imgInput)
-                        outputs.append(imgLabel)
-                    else:
-                        inputs_.append(cv2.resize(imgInput,(224,224)))
-                        outputs.append(cv2.resize(imgLabel,(224,224)))
+                    inputs_.append(imgInput)
+                    outputs.append(imgLabel)
 
-                if isTrain:
-                    proccessedIn,proccessedOut = self.augmentate(inputs_,outputs,outputsize)
-                    yield (proccessedIn,proccessedOut)
-                else:
-                    yield (np.array(inputs_),np.array(outputs))
-
-    def getGenerator(self,outputsize,isTrain=True):
+                proccessedIn,proccessedOut = self.augmentate(inputs_,outputs,isTrain)
+                yield (proccessedIn,proccessedOut)
+               
+    def getGenerator(self,isTrain=True):
         """
             Returns
             ------
             generator for Keras' fit_generator
         """
-        return self.__generator(outputsize,isTrain)
+        return self.__generator(isTrain)
 
     def readIn(self,dataPoint):
         """
@@ -148,18 +139,22 @@ class ImageDataset():
                 Tuple of path to input image and output image
         """
         try:
-            imgIn = cv2.imread(dataPoint[0])/255
-            imgLabel = cv2.imread(dataPoint[1])/255
+            imgIn = cv2.imread(dataPoint[0])
+            imgLabel = cv2.imread(dataPoint[1])
         except Exception as e:
             print("Error reading data:",dataPoint)
             raise e
 
         return (imgIn,imgLabel)
+
+    def augmentate(self,batchIn,batchOut,isTrain):
+        return (batchIn,batchOut)
     
 
-    def augmentate(self,batchIn,batchOut,outputsize):
+    def normCropReshape(self,batchIn,batchOut,outputsize):
         """
-            Augmentate a batch. Normalize, crop and resize
+            Augmentate a batch. Normalize, crop and resize and flip randomly.
+            This function may be called in the implementation of augmentate.
 
             Arguments
             ---------
@@ -175,8 +170,8 @@ class ImageDataset():
 
         assert len(batchIn) == len(batchOut)
         for i in range(len(batchIn)):
-            in_ = batchIn[i]
-            out_= batchOut[i]
+            in_ = batchIn[i]/255
+            out_= batchOut[i]/255
 
             #Crop upto 25% on each side, that means a maximum crop of half the image
             cropShape = (np.array(in_.shape[:-1])/4).astype(np.uint8)
