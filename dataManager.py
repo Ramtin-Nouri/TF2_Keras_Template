@@ -107,13 +107,19 @@ class ImageDataset():
         nDataPoints = len(self.trainData) if isTrain else len(self.valData)
         stepsize = int(nDataPoints/self.batchsize)
         while True:
-            random.shuffle(self.trainData)
+            if isTrain:
+                random.shuffle(self.trainData)
+            else:
+                random.shuffle(self.valData)
             for batch in range(stepsize):
                 inputs_ = []
                 outputs = []
                 for i in range(self.batchsize):
                     index = i + batch*self.batchsize
-                    dataPoint = self.trainData[index]
+                    if isTrain:
+                        dataPoint = self.trainData[index]
+                    else:
+                        dataPoint = self.valData[index]
                     imgInput,imgLabel = self.readIn(dataPoint)
                     inputs_.append(imgInput)
                     outputs.append(imgLabel)
