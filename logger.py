@@ -105,7 +105,7 @@ class Logger():
         both=[None]*(len(self.testImages)*2)
         both[::2]=self.testImages
         both[1::2]=predictions
-        stacked = self.stack(both)
+        stacked = self.stack(both)*255
         cv2.imwrite(name,stacked)
         conv = np.array([np.clip(stacked,0,255)],dtype=np.uint8)
         with fileWriter.as_default():
@@ -115,6 +115,6 @@ class Logger():
         imgpaths = os.listdir(testImageFolder)[:8]
         #Pray they are actually images
         for img in imgpaths:
-            self.testImages.append(cv2.imread(F"{testImageFolder}/{img}"))
+            self.testImages.append(cv2.imread(F"{testImageFolder}/{img}")/255)
         
         
